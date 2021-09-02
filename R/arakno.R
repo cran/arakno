@@ -1,13 +1,11 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.1.0 (2021-06-05)
+#####Version 1.1.1 (2021-08-31)
 #####By Pedro Cardoso
 #####Maintainer: pedro.cardoso@helsinki.fi
 #####Reference: None yet.
-#####Changed from v1.0.1:
-#####Changed name from spidR to arakno
-#####Much improved checknames
-#####Handling of aff., cf. and subspecies
-#####Simplified mapping with no cryptic messages
+#####Changed from v1.1.0:
+#####json return from WST was modified breaking code, fixed now
+#####checknames now allows "sp*"
 
 #####required packages
 library("graphics")
@@ -162,6 +160,19 @@ checknames <- function(tax, full = FALSE, order = FALSE){
   #get all species, genera and family names
   allNames = unique(c(wscdata[,1], wscdata[,3], wscdata[,4]))
 
+  #delete sp or spp from names
+  for(i in 1:length(tax)){
+    nstr = nchar(tax[i])
+    if(substr(tax[i], (nstr - 2), nstr) == " sp")
+      tax[i] = substr(tax[i], 1, nstr - 3)
+    if(substr(tax[i], (nstr - 3), nstr) == " sp.")
+      tax[i] = substr(tax[i], 1, nstr - 4)
+    if(substr(tax[i], (nstr - 3), nstr) == " spp")
+      tax[i] = substr(tax[i], 1, nstr - 4)
+    if(substr(tax[i], (nstr - 4), nstr) == " spp.")
+      tax[i] = substr(tax[i], 1, nstr - 5)
+  }
+
   mismatches = tax[!(tax %in% allNames)]
   if(length(mismatches) == 0) {
     return("All taxa OK!")
@@ -189,8 +200,11 @@ checknames <- function(tax, full = FALSE, order = FALSE){
       } else {
         #create matrix with all possible matches (lsid, epithet)
         matchList = c()
-        for(s in 1:(length(id$items)))
-          matchList = rbind(matchList, c(id$items[[s]]$lsid, id$items[[s]]$genus, id$items[[s]]$species, NA))
+        if(length(id$items) < 2)
+          matchList = rbind(matchList, c(id$item$lsid, id$item$genus, id$item$species, NA))
+        else
+          for(s in 1:(length(id$items)))
+            matchList = rbind(matchList, c(id$items[[s]]$lsid, id$items[[s]]$genus, id$items[[s]]$species, NA))
 
         #Detect nomenclature change by matching the first three letters of
         #correct and wrong specific epithet. Not guaranteed but should be ok 90%.
@@ -434,10 +448,10 @@ traits <- function(tax, trait = NULL, sex = NULL, life = NULL, country = NULL, h
     } else {                                #if species
       t = sub(" ", "+", t)
       id = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/taxonomy?offset=0&limit=10&searchField=fullName&searchValue=", t, "&count=true", sep = ""))
-      id = content(id)$items[[1]]$id
+      id = content(id)$item[[1]]$id
       newTraits = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/data/family/*/genus/*/species/", id, "/original-name/*/trait-category/*/trait/*/method/*/location/*/country/*/dataset/*/authors/*/reference/*/row-link/*?offset=0&limit=10000", sep = ""), authenticate(user, key, "basic"))
     }
-    newTraits = as.data.frame(jsonlite::fromJSON(content(newTraits, "text"), flatten = TRUE)$items)
+    newTraits = as.data.frame(jsonlite::fromJSON(content(newTraits, "text"), flatten = TRUE)$item)
 
     #apply filters
     if(nrow(newTraits) > 0){
@@ -461,7 +475,7 @@ traits <- function(tax, trait = NULL, sex = NULL, life = NULL, country = NULL, h
   }
   if(length(results) == 0)
     return("No results found!")
-  colnames(results) = gsub("items.", "", colnames(results))
+  colnames(results) = gsub("item.", "", colnames(results))
   if(order)
     results = results[order(results[, 2]), ]
   results = unique(results)
