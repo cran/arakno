@@ -18,7 +18,7 @@ A vector with species names.
 Get species within given families or genera from the World Spider Catalogue.
 }
 \details{
-This function will get all species currently listed for given families or genera from the World Spider Catalogue (2021).
+This function will get all species currently listed for given families or genera from the World Spider Catalogue (2022).
 }
 \examples{
 \dontrun{
@@ -27,5 +27,5 @@ species(tax = c("Amphiledorus", "Nemesiidae"), order = TRUE)
 }
 }
 \references{
-World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

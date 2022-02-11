@@ -1,11 +1,10 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.1.1 (2021-08-31)
+#####Version 1.2.0 (2022-02-11)
 #####By Pedro Cardoso
 #####Maintainer: pedro.cardoso@helsinki.fi
-#####Reference: None yet.
-#####Changed from v1.1.0:
-#####json return from WST was modified breaking code, fixed now
-#####checknames now allows "sp*"
+#####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology. https://doi.org/10.1636/JoA-S-21-024
+#####Changed from v1.1.1:
+#####Added functions countries, endemics
 
 #####required packages
 library("graphics")
@@ -49,6 +48,29 @@ getTax <- function(tax){
     }
   }
   return(unique(newTax))
+}
+
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  return(x)
+}
+
+#function to split country strings
+countrySplit <- function(spDist){
+  #spDist = tolower(strsplit(spDist, c("\\, | and | | or | to |from |\\?|\\/|probably|possibly|introduced"))[[1]]) #split text in chunks
+  spDist = tolower(strsplit(spDist, c("\\, | and | or | to |from |\\?|\\/|probably|possibly|introduced"))[[1]]) #split text in chunks
+  spDist = sub("\\(.*", "", spDist) #remove everything after parentheses
+  spDist = gsub("^\\s+|\\s+$", "", spDist) #remove trailing spaces
+  return(spDist)
+}
+
+#function to convert distribution to ISO codes
+iso <- function(distribution){
+  distribution = wscmap[wscmap[,1] %in% distribution, -1]
+  distribution = colSums(distribution)
+  distribution = names(distribution[distribution > 0])
+  distribution = distribution[order(distribution)]
+  return(distribution)
 }
 
 #function adapted from rworldmaps
@@ -107,9 +129,9 @@ joinMap <- function (dF, hires){
 
 #' Downloads WSC data.
 #' @description Downloads the most recent data from the World Spider Catalogue.
-#' @details The World Spider Catalog (2021) lists all currently valid species of spiders, from Clerck to date. Updated daily.
+#' @details The World Spider Catalog (2022) lists all currently valid species of spiders, from Clerck to date. Updated daily.
 #' @return A matrix with all current species names and distribution. This should be used for other functions using wsc data.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' wsc()
 #' }
@@ -140,9 +162,9 @@ wsc <- function(){
 #' @param tax A taxon name or vector with taxa names.
 #' @param full returns the full list of names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2021). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
+#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2022). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
 #' @return If any mismatches, a matrix with taxa not found in WSC or, if full = TRUE, the full list of names.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' tax = c("Nemesis", "Nemesia brauni", "Iberesia machadoi", "Nemesia bacelari")
 #' checknames(tax)
@@ -206,23 +228,23 @@ checknames <- function(tax, full = FALSE, order = FALSE){
           for(s in 1:(length(id$items)))
             matchList = rbind(matchList, c(id$items[[s]]$lsid, id$items[[s]]$genus, id$items[[s]]$species, NA))
 
-        #Detect nomenclature change by matching the first three letters of
-        #correct and wrong specific epithet. Not guaranteed but should be ok 90%.
-        origSpecies = substring(mismatches[i, 1], gregexpr(" ", mismatches[i, 1])[[1]] + 1, )
-        for(s in 1:nrow(matchList)){
-          if(substring(matchList[s, 3], 1, 3) == substring(origSpecies, 1, 3))
-            matchList[s, 4] = "Nomenclature change"
-          else
-            matchList[s, 4] = "Synonym"
-        }
+          #Detect nomenclature change by matching the first three letters of
+          #correct and wrong specific epithet. Not guaranteed but should be ok 90%.
+          origSpecies = substring(mismatches[i, 1], gregexpr(" ", mismatches[i, 1])[[1]] + 1, )
+          for(s in 1:nrow(matchList)){
+            if(substring(matchList[s, 3], 1, 3) == substring(origSpecies, 1, 3))
+              matchList[s, 4] = "Nomenclature change"
+            else
+              matchList[s, 4] = "Synonym"
+          }
 
-        #Order alphabetically the change column so that nomenclature comes first
-        matchList = matchList[order(matchList[, 4]), , drop = FALSE]
-        mismatches[i, 2:3] = c(paste(matchList[1, 2:3], collapse = " "), matchList[1, 4])
-        if(nrow(matchList) == 2)
-          mismatches[i, 4] = paste(matchList[2, 2:3], collapse = " ")
-        if(nrow(matchList) > 2)
-          mismatches[i, 4] = paste(matchList[2:nrow(matchList), 2:3], collapse = ", ")
+          #Order alphabetically the change column so that nomenclature comes first
+          matchList = matchList[order(matchList[, 4]), , drop = FALSE]
+          mismatches[i, 2:3] = c(paste(matchList[1, 2:3], collapse = " "), matchList[1, 4])
+          if(nrow(matchList) == 2)
+            mismatches[i, 4] = paste(matchList[2, 2:3], collapse = " ")
+          if(nrow(matchList) > 2)
+            mismatches[i, 4] = paste(matchList[2:nrow(matchList), 2:3], collapse = ", ")
       }
     }
 
@@ -242,9 +264,9 @@ checknames <- function(tax, full = FALSE, order = FALSE){
 #' @description Get species authority from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species authorities from the World Spider Catalogue (2021). Higher taxa will be converted to species names.
+#' @details This function will get species authorities from the World Spider Catalogue (2022). Higher taxa will be converted to species names.
 #' @return A data.frame with species and authority names.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' authors("Amphiledorus")
 #' authors(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -255,8 +277,8 @@ authors <- function(tax, order = FALSE){
   wsc()
   tax = getTax(tax)
 
-  filterTable = wscdata[wscdata$name %in% tax,]
-  results = filterTable[,c(1,7)]
+  filterTable = wscdata[wscdata$name %in% tax, ]
+  results = filterTable[ ,c(1,7)]
   if(order)
     results = results[order(results[, 1]), ]
   else
@@ -275,9 +297,9 @@ authors <- function(tax, order = FALSE){
 #' @description Get species distribution from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species distributions from the World Spider Catalogue (2021).
+#' @details This function will get species distributions from the World Spider Catalogue (2022).
 #' @return A data.frame with species and distribution. Family and genera names will be converted to species.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' distribution("Nemesia")
 #' distribution(tax = c("Iberesia machadoi", "Amphiledorus ungoliantae"), order = TRUE)
@@ -298,13 +320,78 @@ distribution <- function(tax, order = FALSE){
   return(results)
 }
 
+#' Get taxon countries from WSC.
+#' @description Get countries of taxa from the World Spider Catalogue textual descriptions.
+#' @param tax A taxon name or vector with taxa names.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+#' @return A vector with country ISO codes. Family and genera names will be converted to species.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @examples \dontrun{
+#' countries("Iberesia machadoi")
+#' countries(c("Iberesia machadoi", "Nemesia"))
+#' }
+#' @export
+countries <- function(tax){
+
+  wsc()
+  data(wscmap, package = "arakno", envir = environment())
+  tax = getTax(tax)
+
+  distribution = c()
+  for(sp in tax){
+    spDist = wscdata[wscdata$name == sp, 10]
+    distribution = c(distribution, countrySplit(spDist))
+  }
+
+  distribution = iso(unique(distribution))
+  return(distribution)
+}
+
+#' Get country endemics from WSC.
+#' @description Get endemic species in any country or region from the World Spider Catalogue textual descriptions.
+#' @param country The country/region name or ISO3 code.
+#' @details Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+#' @return A vector with species names.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @examples \dontrun{
+#' endemics("Portugal")
+#' endemics("Azores")
+#' endemics("FIN")
+#' }
+#' @export
+endemics <- function(country){
+
+  pb <- txtProgressBar(min = 0, max = nrow(wscdata), style = 3)
+  end = c()
+  if(country %in% colnames(wscmap)){
+    for(i in 1:nrow(wscdata)){
+      ctr = iso(countrySplit(wscdata$distribution[i]))
+      if(length(ctr) == 1 && country == ctr[1])
+        end = c(end, wscdata$name[i])
+      setTxtProgressBar(pb, i)
+    }
+  } else if(tolower(country) %in% wscmap$Region){
+    for(i in 1:nrow(wscdata)){
+      ctr = countrySplit(wscdata$distribution[i])
+      if(length(ctr) == 1 && tolower(country) == ctr[1])
+        end = c(end, wscdata$name[i])
+      setTxtProgressBar(pb, i)
+    }
+  } else {
+    stop("country not recognized!")
+  }
+
+  end = end[order(end)]
+  return(end)
+}
+
 #' Get species LSID from WSC.
 #' @description Get species LSID from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species LSID from the World Spider Catalogue (2021). Family and genera names will be converted to species.
+#' @details This function will get species LSID from the World Spider Catalogue (2022). Family and genera names will be converted to species.
 #' @return A data.frame with species and LSID.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' lsid("Anapistula")
 #' lsid(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -329,9 +416,9 @@ lsid <- function(tax, order = FALSE){
 #' @description Get species within given families or genera from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order species names alphabetically.
-#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2021).
+#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2022).
 #' @return A vector with species names.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' species("Amphiledorus")
 #' species(tax = c("Amphiledorus", "Nemesiidae"), order = TRUE)
@@ -359,9 +446,9 @@ species <- function(tax, order = FALSE){
 #' @param aut add species authorities.
 #' @param id the lsid should be returned.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2021). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2022). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 #' @return A data.frame with species and taxonomy.
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' taxonomy("Symphytognathidae", order = TRUE, aut = TRUE)
 #' taxonomy(c("Nemesia machadoi", "Nemesia bacelari"), check = TRUE, aut = TRUE, id = TRUE)
@@ -544,10 +631,10 @@ records <- function(tax, order = FALSE, verbose = TRUE){
 #' @param zoom If records is TRUE, the map will be zoomed to the region with records.
 #' @param order Order taxa names alphabetically or keep as in tax.
 #' @param verbose Display information as data are retrieved.
-#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2021). These might be only approximations to country level and should be taken with caution.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
 #' @return A world map with countries and records highlighted.
 #' @references Pekar, S., Cernecka, L., Wolff, J., Mammola, S., Cardoso, P., Lowe, E., Fukushima, C.S., Birkhofer, K. & Herberstein, M.E. (2021). The world spider trait database. Masaryk University, Brno, URL: https://spidertraits.sci.muni.cz
-#' @references World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' map(c("Pardosa hyperborea"))
 #' map("Amphiledorus", zoom = TRUE, hires = TRUE)
@@ -578,23 +665,11 @@ map <- function(tax, countries = TRUE, records = TRUE, hires = FALSE, zoom = FAL
     par(mfrow = c(ceiling(length(tax)^0.5),ceiling(length(tax)^0.5)))
 
   for(sp in tax){
-    if(countries){
-      #get distribution
-      distribution = wscdata[wscdata$name == sp, 10]
-      distribution = tolower(strsplit(distribution, c("\\, | and | to |from |\\?|\\/|probably|possibly|introduced"))[[1]]) #split text in chunks
-      distribution = sub("\\(.*", "", distribution) #remove everything after parentheses
-      distribution = gsub("^\\s+|\\s+$", "", distribution) #remove trailing and white spaces
-
-      #convert distribution to ISO codes
-      iso = wscmap[wscmap[,1] %in% distribution, -1]
-      iso = colSums(iso)
-      iso = names(iso[iso > 0])
-
-      #merge iso codes with map
-      iso = unique(iso)
-    } else {
+    if(countries)
+      iso = countries(sp)
+    else
       iso = c("STP")
-    }
+
     iso = data.frame(code = iso, exists = rep(1, length(iso)))
     countryRegions <- joinMap(iso, hires) #calls adapted function
 

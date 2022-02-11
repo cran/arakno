@@ -13,7 +13,7 @@ A matrix with all current species names and distribution. This should be used fo
 Downloads the most recent data from the World Spider Catalogue.
 }
 \details{
-The World Spider Catalog (2021) lists all currently valid species of spiders, from Clerck to date. Updated daily.
+The World Spider Catalog (2022) lists all currently valid species of spiders, from Clerck to date. Updated daily.
 }
 \examples{
 \dontrun{
@@ -21,5 +21,5 @@ wsc()
 }
 }
 \references{
-World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

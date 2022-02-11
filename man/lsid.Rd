@@ -18,7 +18,7 @@ A data.frame with species and LSID.
 Get species LSID from the World Spider Catalogue.
 }
 \details{
-This function will get species LSID from the World Spider Catalogue (2021). Family and genera names will be converted to species.
+This function will get species LSID from the World Spider Catalogue (2022). Family and genera names will be converted to species.
 }
 \examples{
 \dontrun{
@@ -27,5 +27,5 @@ lsid(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae
 }
 }
 \references{
-World Spider Catalog (2021). World Spider Catalog. Version 22.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

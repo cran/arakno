@@ -2,7 +2,9 @@
 
 export(authors)
 export(checknames)
+export(countries)
 export(distribution)
+export(endemics)
 export(lsid)
 export(map)
 export(records)
