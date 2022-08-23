@@ -1,30 +1,34 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.2.0 (2022-02-11)
+#####Version 1.3.0 (2022-08-23)
 #####By Pedro Cardoso
 #####Maintainer: pedro.cardoso@helsinki.fi
-#####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology. https://doi.org/10.1636/JoA-S-21-024
-#####Changed from v1.1.1:
-#####Added functions countries, endemics
+#####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology, 50: 30-32. https://doi.org/10.1636/JoA-S-21-024
+#####Changed from v1.2.0:
+#####Added function buildtree
 
 #####required packages
+library("ape")
 library("graphics")
 library("httr")
 library("jsonlite")
+library("phytools")
 library("rgbif")
 library("rworldmap")
 library("rworldxtra")
 library("stats")
 library("utils")
+#' @import ape
 #' @import graphics
 #' @import httr
 #' @import jsonlite
+#' @import phytools
 #' @import rgbif
 #' @import rworldmap
 #' @import rworldxtra
 #' @import stats
 #' @import utils
 
-globalVariables(c("wscdata", "wscmap"))
+globalVariables(c("globalTree", "wscdata", "wscmap"))
 
 ################################################################################
 ################################AUX FUNCTIONS###################################
@@ -50,9 +54,57 @@ getTax <- function(tax){
   return(unique(newTax))
 }
 
-firstup <- function(x) {
+#convert first letter to upper case
+firstUp <- function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
   return(x)
+}
+
+#identify if name is a family
+isFamily <- function(tax){
+  nTax = nchar(tax)
+  if(nTax > 4 & substr(tax, nTax-3, nTax) == "idae")
+    return(TRUE)
+  else
+    return(FALSE)
+}
+
+#Core function to add any taxon to globalTree
+addSpecies <- function(tree, tax){
+
+  #prepare data
+  tax = sub(" ", "_", tax)
+  taxName = tax
+  tax = unlist(strsplit(tax, "_"))[1]
+
+  #which tax and genera are on the tree?
+  taxTree = sapply(tree$tip.label,  function(x) unlist(strsplit(x, "_"))[1])
+  genTree = taxTree[sapply(unique(taxTree), function(x) !isFamily(x))]
+
+  #identify congenerics or confamiliar of tax in tree
+  if(tax %in% genTree){   #use species from same genus in the tree if any
+    taxList = names(taxTree[taxTree == tax])
+  } else {
+    tax = taxonomy(tax)[1,2]
+    taxList = c(tax, unique(taxonomy(tax)$Genus))
+    taxList = names(taxTree[taxTree %in% taxList])
+  }
+
+  #add tax to tree
+  if(length(taxList) == 1){
+    #if taxList only has one species, the new taxon will be added at half the length
+    spNum = which(tree$tip.label == taxList)
+    edgeLength = tree$edge.length[which(tree$edge[, 2] == spNum)] / 2
+    tree = bind.tip(tree, taxName, edge.length = edgeLength, where = spNum, position = edgeLength)
+  } else {
+    #if taxList has multiple species identify most recent common ancestor to add tax
+    edgeNum = getMRCA(tree, taxList)
+    tree = bind.tip(tree, taxName, where = edgeNum)
+  }
+
+  #finalize
+  tree <- multi2di(tree, random = TRUE) #resolve polytomies
+  return(tree)
 }
 
 #function to split country strings
@@ -361,6 +413,7 @@ countries <- function(tax){
 #' @export
 endemics <- function(country){
 
+  wsc()
   pb <- txtProgressBar(min = 0, max = nrow(wscdata), style = 3)
   end = c()
   if(country %in% colnames(wscmap)){
@@ -487,6 +540,53 @@ taxonomy <- function(tax, check = FALSE, aut = FALSE, id = FALSE, order = FALSE)
   return(results)
 }
 
+#' Create phylogenetic tree.
+#' @description Create a phylogenetic tree based on the backbone from Macias-Hernandez et al. (2020) and the species taxonomical hierarchy.
+#' @param tax A taxon name or vector with taxa names. Should be in the general form "Family_sp" or "Genus speciesname", with family or genus name plus anything to uniquely identify the species separated by "_" or " ".
+#' @param update Whether to update the taxonomy of the backbone tree according to the WSC (2022).
+#' @details Based on the backbone phylogeny of Macias-Hernandez et al. (2020). All species in tax present in the backbone are included in the output tree.
+#' If the species is not in the backbone, or if only family or genus are known, species are inserted at the level of the most recent common ancestor of confamiliar or congenerics respectively.
+#' If only one congeneric or confamiliar are in the backbone, the species is inserted at half the length of the corresponding edge.
+#' @return A phylo object with a phylogenetic tree for the community.
+#' @references Macías-Hernández et al. (2020). Building-up of a robust, densely sampled spider tree of life for assessing phylogenetic diversity at the community level. Diversity, 12: 288. https://doi.org/10.3390/d12080288
+#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @examples \dontrun{
+#' spp = c("Atypus affinis", "Tenuiphantes tenuis", "Zodarion sp1", "Araneus diadematus")
+#' spp = c(spp, "Zodarion sp2", "Atypus_nsp", "Nemesia ungoliant", "Linyphiidae sp1")
+#' spp = c(spp, "Zoropsis spinimana", "Pardosa sp1", "Pardosa acorensis", "Liphistius nsp")
+#' tree = buildtree(spp)
+#' plot(tree)
+#' }
+#' @export
+buildtree <- function(tax, update = FALSE){
+
+  #prepare data
+  wsc()
+  data(globalTree, package = "arakno", envir = environment())
+  tree = globalTree
+  tax = sapply(tax, function(x) sub(" ", "_", x))
+
+  #update tree nomenclature if needed
+  if(update){
+    tips = checknames(sapply(tree$tip.label, function(x) sub("_", " ", x)), full = TRUE)
+    if(length(tips) > 1)
+      tree$tip.label = sapply(tips[, 2], function(x) sub(" ", "_", x))
+  }
+
+  #add species one by one
+  for(i in 1:length(tax)){
+    if(!(tax[i] %in% tree$tip.label)){  #if tax is not represented in tree, add it
+      tree = addSpecies(tree, tax[i])
+      names(tree$tip.label) = tree$tip.label
+      writeLines(paste("Added", tax[i], "to tree\n"))
+    }
+  }
+
+  tree = keep.tip(tree, tax)  #leave only taxa of interest
+  return(tree)
+}
+
+
 #' Get trait data from WST.
 #' @description Downloads the most recent data from the World Spider Trait database.
 #' @param tax A taxon name or vector with taxa names.
@@ -502,7 +602,7 @@ taxonomy <- function(tax, check = FALSE, aut = FALSE, id = FALSE, order = FALSE)
 #' @details The World Spider Trait database (Pekar et al. 2021) has been designed to contain trait data in a broad sense, from morphological traits to ecological characteristics, ecophysiology, behavioural habits, and more (Lowe et al. 2020). This function will download everything available for the taxa given, possibly filtered to the traits given in parameter trait. Some data might be restricted access, in which case a user name and api key are needed (https://spidertraits.sci.muni.cz/api), otherwise the value will show as NA.
 #' @return A matrix with trait data.
 #' @references Lowe, E., Wolff, J.O., Aceves-Aparicio, A., Birkhofer, K., Branco, V.V., Cardoso, P., Chichorro, F., Fukushima, C.S., Goncalves-Souza, T., Haddad, C.R., Isaia, M., Krehenwinkel, H., Audisio, T.L., Macias-Hernandez, N., Malumbres-Olarte, J., Mammola, S., McLean, D.J., Michalko, R., Nentwig, W., Pekar, S., Petillon, J., Privet, K., Scott, C., Uhl, G., Urbano-Tenorio, F., Wong, B.H. & Herbestein, M.E. (2020). Towards establishment of a centralized spider traits database. Journal of Arachnology, 48: 103-109. https://doi.org/10.1636/0161-8202-48.2.103
-#' @references Pekar, S., Cernecka, L., Wolff, J., Mammola, S., Cardoso, P., Lowe, E., Fukushima, C.S., Birkhofer, K. & Herberstein, M.E. (2021). The world spider trait database. Masaryk University, Brno, URL: https://spidertraits.sci.muni.cz
+#' @references Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
 #' @examples \dontrun{
 #' traits("Atypus affinis")
 #' traits("Atypus", order = TRUE)
@@ -577,7 +677,7 @@ traits <- function(tax, trait = NULL, sex = NULL, life = NULL, country = NULL, h
 #' @details Outputs non-duplicate records with geographical (long, lat) coordinates.
 #' As always when using data from multiple sources the user should be careful and check if records "make sense" before using them.
 #' @return A data.frame with species name, longitude, latitude, source database and reference.
-#' @references Pekar, S., Cernecka, L., Wolff, J., Mammola, S., Cardoso, P., Lowe, E., Fukushima, C.S., Birkhofer, K. & Herberstein, M.E. (2021). The world spider trait database. Masaryk University, Brno, URL: https://spidertraits.sci.muni.cz
+#' @references Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
 #' @examples \dontrun{
 #' records("Pardosa hyperborea")
 #' records(tax = c("Pardosa hyperborea", "Anapistula"), order = TRUE)
@@ -633,7 +733,7 @@ records <- function(tax, order = FALSE, verbose = TRUE){
 #' @param verbose Display information as data are retrieved.
 #' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
 #' @return A world map with countries and records highlighted.
-#' @references Pekar, S., Cernecka, L., Wolff, J., Mammola, S., Cardoso, P., Lowe, E., Fukushima, C.S., Birkhofer, K. & Herberstein, M.E. (2021). The world spider trait database. Masaryk University, Brno, URL: https://spidertraits.sci.muni.cz
+#' @references Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
 #' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' map(c("Pardosa hyperborea"))
@@ -687,6 +787,17 @@ map <- function(tax, countries = TRUE, records = TRUE, hires = FALSE, zoom = FAL
       points(rec, pch = 21, col = "black", bg = "white")
   }
 }
+
+#' Global spider backbone tree.
+#'
+#' From Macias-Hernandez et al. (2020) with nomenclature updated.
+#'
+#' @docType data
+#' @keywords datasets
+#' @name globalTree
+#' @usage data(globalTree)
+#' @format A phylo object with 132 families and 800+ genera, 1400+ species.
+NULL
 
 #' Matrix matching WSC and ISO3 country codes.
 #'

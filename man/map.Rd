@@ -46,7 +46,7 @@ map(c("Pardosa hyperborea", "Iberesia machadoi"), countries  = FALSE, hires = TR
 }
 }
 \references{
-Pekar, S., Cernecka, L., Wolff, J., Mammola, S., Cardoso, P., Lowe, E., Fukushima, C.S., Birkhofer, K. & Herberstein, M.E. (2021). The world spider trait database. Masaryk University, Brno, URL: https://spidertraits.sci.muni.cz
+Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
 
 World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }
