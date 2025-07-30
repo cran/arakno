@@ -9,7 +9,7 @@ buildtree(tax, update = FALSE)
 \arguments{
 \item{tax}{A taxon name or vector with taxa names. Should be in the general form "Family_sp" or "Genus speciesname", with family or genus name plus anything to uniquely identify the species separated by "_" or " ".}
 
-\item{update}{Whether to update the taxonomy of the backbone tree according to the WSC (2022).}
+\item{update}{Whether to update the taxonomy of the backbone tree according to the WSC (2025).}
 }
 \value{
 A phylo object with a phylogenetic tree for the community.
@@ -34,5 +34,5 @@ plot(tree)
 \references{
 Macías-Hernández et al. (2020). Building-up of a robust, densely sampled spider tree of life for assessing phylogenetic diversity at the community level. Diversity, 12: 288. https://doi.org/10.3390/d12080288
 
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

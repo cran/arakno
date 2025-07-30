@@ -18,7 +18,7 @@ A data.frame with species and authority names.
 Get species authority from the World Spider Catalogue.
 }
 \details{
-This function will get species authorities from the World Spider Catalogue (2022). Higher taxa will be converted to species names.
+This function will get species authorities from the World Spider Catalogue (2025). Higher taxa will be converted to species names.
 }
 \examples{
 \dontrun{
@@ -27,5 +27,5 @@ authors(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungolian
 }
 }
 \references{
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

@@ -24,7 +24,7 @@ A data.frame with species and taxonomy.
 Get species sub/infraorder, family and genus from the World Spider Catalogue.
 }
 \details{
-This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2022). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2025). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 }
 \examples{
 \dontrun{
@@ -33,5 +33,5 @@ taxonomy(c("Nemesia machadoi", "Nemesia bacelari"), check = TRUE, aut = TRUE, id
 }
 }
 \references{
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

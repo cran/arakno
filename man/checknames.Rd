@@ -20,7 +20,7 @@ If any mismatches, a matrix with taxa not found in WSC or, if full = TRUE, the f
 Check taxa names against the World Spider Catalogue.
 }
 \details{
-This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2022). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
+This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2025). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
 }
 \examples{
 \dontrun{
@@ -30,5 +30,5 @@ checknames(tax, full = TRUE, order = TRUE)
 }
 }
 \references{
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

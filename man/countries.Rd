@@ -16,7 +16,7 @@ A vector with country ISO codes. Family and genera names will be converted to sp
 Get countries of taxa from the World Spider Catalogue textual descriptions.
 }
 \details{
-Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
 }
 \examples{
 \dontrun{
@@ -25,5 +25,5 @@ countries(c("Iberesia machadoi", "Nemesia"))
 }
 }
 \references{
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

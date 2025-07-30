@@ -36,7 +36,7 @@ A world map with countries and records highlighted.
 Maps species range according to the World Spider Catalogue and records according to GBIF and the World Spider Trait database.
 }
 \details{
-Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
 }
 \examples{
 \dontrun{
@@ -48,5 +48,5 @@ map(c("Pardosa hyperborea", "Iberesia machadoi"), countries  = FALSE, hires = TR
 \references{
 Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
 
-World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

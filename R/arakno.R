@@ -1,10 +1,12 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.3.0 (2022-08-23)
+#####Version 1.3.1 (2025-07-29)
 #####By Pedro Cardoso
-#####Maintainer: pedro.cardoso@helsinki.fi
+#####Maintainer: pmcardoso@ciencias.ulisboa.pt
 #####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology, 50: 30-32. https://doi.org/10.1636/JoA-S-21-024
-#####Changed from v1.2.0:
-#####Added function buildtree
+#####Changed from v1.3.0:
+#####Improved checknames
+#####Updated globalTree
+#####Updated wscmap
 
 #####required packages
 library("ape")
@@ -181,9 +183,9 @@ joinMap <- function (dF, hires){
 
 #' Downloads WSC data.
 #' @description Downloads the most recent data from the World Spider Catalogue.
-#' @details The World Spider Catalog (2022) lists all currently valid species of spiders, from Clerck to date. Updated daily.
+#' @details The World Spider Catalog (2025) lists all currently valid species of spiders, from Clerck to date. Updated daily.
 #' @return A matrix with all current species names and distribution. This should be used for other functions using wsc data.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' wsc()
 #' }
@@ -214,9 +216,9 @@ wsc <- function(){
 #' @param tax A taxon name or vector with taxa names.
 #' @param full returns the full list of names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2022). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
+#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2025). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
 #' @return If any mismatches, a matrix with taxa not found in WSC or, if full = TRUE, the full list of names.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' tax = c("Nemesis", "Nemesia brauni", "Iberesia machadoi", "Nemesia bacelari")
 #' checknames(tax)
@@ -225,27 +227,32 @@ wsc <- function(){
 #' @export
 checknames <- function(tax, full = FALSE, order = FALSE){
 
-  #test if any name is longer than 2 words (e.g., subspecies, cf., aff.)
-  if(any(sapply(strsplit(tax, " "), length) > 2))
-    stop("Some names are longer than 2 words (e.g., subspecies, cf., aff.) and cannot be checked.\nPlease use only species, genera or family names.")
+  #delete sp, spp, cf, aff, etc from names
+  for(i in 1:length(tax)){
+    tax[i] = sub("\\.", "", tax[i])
+    tax[i] = sub(" sp nov", "", tax[i])
+    tax[i] = sub(" sp n", "", tax[i])
+    tax[i] = sub(" n sp", "", tax[i])
+    tax[i] = sub(" spp", "", tax[i])
+    tax[i] = sub(" sp", "", tax[i])
+    tax[i] = sub(" cf ", " ", tax[i])
+    tax[i] = sub(" aff ", " ", tax[i])
+  }
+
+  #check if any name is longer than 2 words (e.g., subspecies)
+  wrongName = which(sapply(strsplit(tax, " "), length) > 2)
+  if(length(wrongName > 0))
+    stop(paste("Some names are longer than 2 words (e.g., subspecies) and cannot be checked.\nPlease use only species, genera or family names:", tax[wrongName], "\n"))
+
+  #check if any name ends with spaces
+  wrongEnd = which(substring(tax, nchar(tax)) == " ")
+  if(length(wrongEnd > 0))
+    stop(paste("Some names end with spaces and cannot be checked.\nPlease delete extra spaces:", tax[wrongEnd], "\n"))
 
   wsc()
 
   #get all species, genera and family names
   allNames = unique(c(wscdata[,1], wscdata[,3], wscdata[,4]))
-
-  #delete sp or spp from names
-  for(i in 1:length(tax)){
-    nstr = nchar(tax[i])
-    if(substr(tax[i], (nstr - 2), nstr) == " sp")
-      tax[i] = substr(tax[i], 1, nstr - 3)
-    if(substr(tax[i], (nstr - 3), nstr) == " sp.")
-      tax[i] = substr(tax[i], 1, nstr - 4)
-    if(substr(tax[i], (nstr - 3), nstr) == " spp")
-      tax[i] = substr(tax[i], 1, nstr - 4)
-    if(substr(tax[i], (nstr - 4), nstr) == " spp.")
-      tax[i] = substr(tax[i], 1, nstr - 5)
-  }
 
   mismatches = tax[!(tax %in% allNames)]
   if(length(mismatches) == 0) {
@@ -257,6 +264,7 @@ checknames <- function(tax, full = FALSE, order = FALSE){
 
       #detect nomenclature changes or synonyms
       tax2 = sub(" ", "%20", mismatches[i, 1])
+      cat(i)
       id = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/taxonomy/valid-names?taxon=", tax2, sep = ""))
       id = httr::content(id)
 
@@ -316,9 +324,9 @@ checknames <- function(tax, full = FALSE, order = FALSE){
 #' @description Get species authority from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species authorities from the World Spider Catalogue (2022). Higher taxa will be converted to species names.
+#' @details This function will get species authorities from the World Spider Catalogue (2025). Higher taxa will be converted to species names.
 #' @return A data.frame with species and authority names.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' authors("Amphiledorus")
 #' authors(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -349,9 +357,9 @@ authors <- function(tax, order = FALSE){
 #' @description Get species distribution from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species distributions from the World Spider Catalogue (2022).
+#' @details This function will get species distributions from the World Spider Catalogue (2025).
 #' @return A data.frame with species and distribution. Family and genera names will be converted to species.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' distribution("Nemesia")
 #' distribution(tax = c("Iberesia machadoi", "Amphiledorus ungoliantae"), order = TRUE)
@@ -375,9 +383,9 @@ distribution <- function(tax, order = FALSE){
 #' Get taxon countries from WSC.
 #' @description Get countries of taxa from the World Spider Catalogue textual descriptions.
 #' @param tax A taxon name or vector with taxa names.
-#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
 #' @return A vector with country ISO codes. Family and genera names will be converted to species.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' countries("Iberesia machadoi")
 #' countries(c("Iberesia machadoi", "Nemesia"))
@@ -401,14 +409,14 @@ countries <- function(tax){
 
 #' Get country endemics from WSC.
 #' @description Get endemic species in any country or region from the World Spider Catalogue textual descriptions.
-#' @param country The country/region name or ISO3 code.
-#' @details Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+#' @param country The ISO3 code (preferred to avoid ambiguity) or country/region name.
+#' @details Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
 #' @return A vector with species names.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
-#' endemics("Portugal")
-#' endemics("Azores")
-#' endemics("FIN")
+#' endemics("PRT")
+#' endemics("Madeira")
+#' endemics("Finland")
 #' }
 #' @export
 endemics <- function(country){
@@ -434,6 +442,8 @@ endemics <- function(country){
     stop("country not recognized!")
   }
 
+  if(is.null(end))
+    stop("No endemics found!")
   end = end[order(end)]
   return(end)
 }
@@ -442,9 +452,9 @@ endemics <- function(country){
 #' @description Get species LSID from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species LSID from the World Spider Catalogue (2022). Family and genera names will be converted to species.
+#' @details This function will get species LSID from the World Spider Catalogue (2025). Family and genera names will be converted to species.
 #' @return A data.frame with species and LSID.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' lsid("Anapistula")
 #' lsid(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -469,9 +479,9 @@ lsid <- function(tax, order = FALSE){
 #' @description Get species within given families or genera from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order species names alphabetically.
-#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2022).
+#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2025).
 #' @return A vector with species names.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' species("Amphiledorus")
 #' species(tax = c("Amphiledorus", "Nemesiidae"), order = TRUE)
@@ -499,9 +509,9 @@ species <- function(tax, order = FALSE){
 #' @param aut add species authorities.
 #' @param id the lsid should be returned.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2022). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2025). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 #' @return A data.frame with species and taxonomy.
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' taxonomy("Symphytognathidae", order = TRUE, aut = TRUE)
 #' taxonomy(c("Nemesia machadoi", "Nemesia bacelari"), check = TRUE, aut = TRUE, id = TRUE)
@@ -543,13 +553,13 @@ taxonomy <- function(tax, check = FALSE, aut = FALSE, id = FALSE, order = FALSE)
 #' Create phylogenetic tree.
 #' @description Create a phylogenetic tree based on the backbone from Macias-Hernandez et al. (2020) and the species taxonomical hierarchy.
 #' @param tax A taxon name or vector with taxa names. Should be in the general form "Family_sp" or "Genus speciesname", with family or genus name plus anything to uniquely identify the species separated by "_" or " ".
-#' @param update Whether to update the taxonomy of the backbone tree according to the WSC (2022).
+#' @param update Whether to update the taxonomy of the backbone tree according to the WSC (2025).
 #' @details Based on the backbone phylogeny of Macias-Hernandez et al. (2020). All species in tax present in the backbone are included in the output tree.
 #' If the species is not in the backbone, or if only family or genus are known, species are inserted at the level of the most recent common ancestor of confamiliar or congenerics respectively.
 #' If only one congeneric or confamiliar are in the backbone, the species is inserted at half the length of the corresponding edge.
 #' @return A phylo object with a phylogenetic tree for the community.
 #' @references Macías-Hernández et al. (2020). Building-up of a robust, densely sampled spider tree of life for assessing phylogenetic diversity at the community level. Diversity, 12: 288. https://doi.org/10.3390/d12080288
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' spp = c("Atypus affinis", "Tenuiphantes tenuis", "Zodarion sp1", "Araneus diadematus")
 #' spp = c(spp, "Zodarion sp2", "Atypus_nsp", "Nemesia ungoliant", "Linyphiidae sp1")
@@ -731,10 +741,10 @@ records <- function(tax, order = FALSE, verbose = TRUE){
 #' @param zoom If records is TRUE, the map will be zoomed to the region with records.
 #' @param order Order taxa names alphabetically or keep as in tax.
 #' @param verbose Display information as data are retrieved.
-#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2022). These might be only approximations to country level and should be taken with caution.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
 #' @return A world map with countries and records highlighted.
 #' @references Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
-#' @references World Spider Catalog (2022). World Spider Catalog. Version 23.0. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' map(c("Pardosa hyperborea"))
 #' map("Amphiledorus", zoom = TRUE, hires = TRUE)
