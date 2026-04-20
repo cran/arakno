@@ -1,11 +1,12 @@
-4ba12ae4026ff18fa5b305b1996714b2 *DESCRIPTION
+2a6272e7b5813c46d0bffa9d24b45f81 *DESCRIPTION
 dbfb6001c88883226987c825d2ce7240 *NAMESPACE
-d0b3c08cfbfba659cec06e6dd489d2fb *R/arakno.R
+6ca5de8e8f667129211cd825ea16ff19 *R/arakno.R
 840a74bebeba143eb4c490512e70917c *data/globalTree.rda
+18650a29e3d8efbf1d2c6832a3b60936 *data/wscmap.csv
 d310042eb1e95d8cea4a1cd5e5511712 *data/wscmap.rda
 bceca27e48e2a99cccd6afcc99c6fd5b *man/authors.Rd
 d51de188c81bca51745973df865a3cc0 *man/buildtree.Rd
-59c2d1949e02c683568e445ddae8e1d8 *man/checknames.Rd
+c5ad58d5aa74a5e6381915b0cddb7263 *man/checknames.Rd
 0bc57bbe53551c074c2927e6692241b8 *man/countries.Rd
 c806c5750b933a5070e69d7546af9044 *man/distribution.Rd
 7e282a811c13d482972ca1f28cf32be7 *man/endemics.Rd
@@ -14,7 +15,7 @@ df7737442eace9be7463463119b0e676 *man/globalTree.Rd
 3f24c1803fc5ffbd8c1157ee0a49dd80 *man/map.Rd
 5deb84ec8fbb521f989408232aa449c0 *man/records.Rd
 63ffc48f41a74aeee2b11928be0f3785 *man/species.Rd
-e732f68a046d7a32d01be3c2f38e3f40 *man/taxonomy.Rd
-6a9fc401b1542f054d5290ba198a690f *man/traits.Rd
-cb1720e18824c3154ca977f1088ca5ed *man/wsc.Rd
+0b1fa00f5e9dca33a436586c62a72b99 *man/taxonomy.Rd
+fa214b971068983761631a28599901a7 *man/traits.Rd
+90e90566956d3d704a95d8b47f4fbbe2 *man/wsc.Rd
 8146c9e5cf6c519604386a116aef3cc1 *man/wscmap.Rd

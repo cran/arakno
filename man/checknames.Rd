@@ -24,11 +24,11 @@ This function will check if all species, genera and family names in tax are upda
 }
 \examples{
 \dontrun{
-tax = c("Nemesis", "Nemesia brauni", "Iberesia machadoi", "Nemesia bacelari")
+tax = c("Nemesis", "Nemesia brauni", "Iberesia machadoi", "Nemesia bacelari", "Dysdera vandeli")
 checknames(tax)
 checknames(tax, full = TRUE, order = TRUE)
 }
 }
 \references{
-World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }

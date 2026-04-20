@@ -4,12 +4,10 @@
 \alias{taxonomy}
 \title{Get taxonomy from species.}
 \usage{
-taxonomy(tax, check = FALSE, aut = FALSE, id = FALSE, order = FALSE)
+taxonomy(tax, aut = FALSE, id = FALSE, order = FALSE)
 }
 \arguments{
 \item{tax}{A taxon name or vector with taxa names.}
-
-\item{check}{species names should be replaced by possible matches in the WSC if outdated.}
 
 \item{aut}{add species authorities.}
 
@@ -28,8 +26,8 @@ This function will get species sub/infraorder, family and genus from the World S
 }
 \examples{
 \dontrun{
-taxonomy("Symphytognathidae", order = TRUE, aut = TRUE)
-taxonomy(c("Nemesia machadoi", "Nemesia bacelari"), check = TRUE, aut = TRUE, id = TRUE)
+taxonomy("Symphytognathidae", order = TRUE)
+taxonomy(c("Iberesia machadoi", "Nemesia bacelarae"), aut = TRUE, id = TRUE)
 }
 }
 \references{

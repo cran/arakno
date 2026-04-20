@@ -49,9 +49,8 @@ The World Spider Trait database (Pekar et al. 2021) has been designed to contain
 }
 \examples{
 \dontrun{
-traits("Atypus affinis")
-traits("Atypus", order = TRUE)
-traits("Atypidae", country = c("PRT", "CZE"), order = TRUE)
+traits("Zodarion costapratae")
+traits("Zodarion costapratae", country = c("PRT"), order = TRUE)
 traits(c("Zodarion costapratae", "Zodarion alacre"))
 traits(c("Iberesia machadoi", "Zodarion costapratae"), trait = c("balo", "bole"))
 }
