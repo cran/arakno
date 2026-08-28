@@ -1,10 +1,10 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.3.2 (2026-04-20)
+#####Version 1.3.3 (2026-08-26)
 #####By Pedro Cardoso
 #####Maintainer: pmcardoso@ciencias.ulisboa.pt
 #####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology, 50: 30-32. https://doi.org/10.1636/JoA-S-21-024
-#####Changed from v1.3.1:
-#####Corrected all functions relying on wsc taxonomy
+#####Changed from v1.3.2:
+#####Corrected all functions relying on wsc and rgbif
 
 #####required packages
 library("ape")
@@ -28,8 +28,6 @@ library("utils")
 #' @import stats
 #' @import utils
 
-globalVariables(c("globalTree", "wscdata", "wscmap"))
-
 ################################################################################
 ################################AUX FUNCTIONS###################################
 ################################################################################
@@ -37,9 +35,9 @@ globalVariables(c("globalTree", "wscdata", "wscmap"))
 getTax <- function(tax){
 
   #if any taxa not found break execution
-  if(length(checknames(tax)) > 1){
-    warning(paste("Some names were not found in WSC:", checknames(tax)[,1]))
-    stop("Please run arakno::checknames() to check and possibly correct")
+  if(length(checkNames(tax)) > 1){
+    warning(paste("Some names were not found in WSC:", checkNames(tax)[,1]))
+    stop("Please run arakno::checkNames() to check and possibly correct")
   }
 
   newTax = c()
@@ -191,23 +189,23 @@ joinMap <- function (dF, hires){
 #' @export
 wsc <- function(){
 
-  if(!exists("wscdata") || is.null(wscdata) || ((Sys.time() - attributes(wscdata)$lastUpdate) > 1440)){
+  if(!exists("wscData") || is.null(wscData) || ((Sys.time() - attributes(wscData)$lastUpdate) > 1440)){
 
-    cat("Retrieving data from the World Spider Catalogue...\n")
+    cat("Retrieving latest data from the World Spider Catalogue...\n")
     #fetch data from wsc (try both current and previous day)
     today = gsub("-", "", as.character(Sys.Date()))
     yesterday = gsub("-", "", as.character(Sys.Date()-1))
-    wscdata = tryCatch(read.csv2(paste("https://wsc.nmbe.ch/resources/species_export_", today, ".csv", sep = ""), sep = ",", encoding = "UTF-8"),
+    wscData = tryCatch(read.csv2(paste("https://wsc.nmbe.ch/resources/species_export_", today, ".csv", sep = ""), sep = ",", encoding = "UTF-8"),
                        warning = function(x) x = read.csv2(paste("https://wsc.nmbe.ch/resources/species_export_", yesterday, ".csv", sep = ""), sep = ","), encoding = "UTF-8")
     #clean data
-    wscdata[,2] = do.call(paste, wscdata[, 5:6])
-    colnames(wscdata)[2] = "name"
-    attr(wscdata, 'lastUpdate') = Sys.time()
+    wscData[,2] = do.call(paste, wscData[, 5:6])
+    colnames(wscData)[2] = "name"
+    attr(wscData, 'lastUpdate') = Sys.time()
 
-    #set wscdata as global variable
+    #set wscData as global variable
     pos <- 1
     envir = as.environment(pos)
-    assign("wscdata", wscdata, envir = envir)
+    assign("wscData", wscData, envir = envir)
   }
 }
 
@@ -216,16 +214,16 @@ wsc <- function(){
 #' @param tax A taxon name or vector with taxa names.
 #' @param full returns the full list of names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2025). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
+#' @details This function will check if all species, genera and family names in tax are updated according to the World Spider Catalogue (2026). If not, it returns a matrix with nomenclature changes, valid synonyms or possible misspellings using fuzzy matching (Levenshtein edit distance).
 #' @return If any mismatches, a matrix with taxa not found in WSC or, if full = TRUE, the full list of names.
 #' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' tax = c("Nemesis", "Nemesia brauni", "Iberesia machadoi", "Nemesia bacelari", "Dysdera vandeli")
-#' checknames(tax)
-#' checknames(tax, full = TRUE, order = TRUE)
+#' checkNames(tax)
+#' checkNames(tax, full = TRUE, order = TRUE)
 #' }
 #' @export
-checknames <- function(tax, full = FALSE, order = FALSE){
+checkNames <- function(tax, full = FALSE, order = FALSE){
 
   #delete spp, cf, aff, etc from names
   for(i in 1:length(tax)){
@@ -255,15 +253,7 @@ checknames <- function(tax, full = FALSE, order = FALSE){
 
   wsc()
 
-  #get a table of synonyms from WSC
-  synList = wscdata[wscdata$taxonStatus == "SYNONYM", ]
-  synList = synList[, c(2,12)]
-  synList$validSpeciesId = wscdata$name[match(synList$validSpeciesId, wscdata$speciesId)]
-
-  #get all valid species, genera and family names
-  allNames = wscdata[wscdata$taxonStatus == "VALID",]
-  allNames = unique(c(allNames$name, allNames$genus, allNames$family))
-
+  allNames = unique(c(wscData$name, wscData$family, wscData$genus))
   mismatches = tax[!(tax %in% allNames)]
   if(length(mismatches) == 0) {
     return("All taxa OK!")
@@ -272,19 +262,13 @@ checknames <- function(tax, full = FALSE, order = FALSE){
     colnames(mismatches) = c("Species", "Best match", "Note", "Alternative match(es)")
     for(i in 1:nrow(mismatches)){
 
-      #detect synonyms using respective table
-      if(mismatches[i, 1] %in% synList$name){
-        mismatches[i, 2:3] = c(synList$validSpeciesId[which(synList$name == mismatches[i, 1])], "Synonym")
-        next
-      }
-
       #detect nomenclature changes
       tax2 = sub(" ", "%20", mismatches[i, 1])
       id = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/taxonomy/valid-names?taxon=", tax2, sep = ""))
       id = httr::content(id)
 
       #if no synonyms or changes detect misspellings
-      if(is.null(id$items)){
+      if(is.null(id$item)){
         d = adist(allNames, mismatches[i, 1])
         id = allNames[which(d == min(d))]
         mismatches[i, 3] = "Misspelling"
@@ -304,23 +288,23 @@ checknames <- function(tax, full = FALSE, order = FALSE){
           for(s in 1:(length(id$items)))
             matchList = rbind(matchList, c(id$items[[s]]$lsid, id$items[[s]]$genus, id$items[[s]]$species, NA))
 
-          #Detect nomenclature change by matching the first three letters of
-          #correct and wrong specific epithet. Not guaranteed but should be ok 90%.
-          origSpecies = substring(mismatches[i, 1], gregexpr(" ", mismatches[i, 1])[[1]] + 1, )
-          for(s in 1:nrow(matchList)){
-            if(substring(matchList[s, 3], 1, 3) == substring(origSpecies, 1, 3))
-              matchList[s, 4] = "Nomenclature change"
-            else
-              matchList[s, 4] = "Synonym"
-          }
+        #Detect nomenclature change by matching the first three letters of
+        #correct and wrong specific epithet. Not guaranteed but should be ok 90%.
+        origSpecies = substring(mismatches[i, 1], gregexpr(" ", mismatches[i, 1])[[1]] + 1, )
+        for(s in 1:nrow(matchList)){
+          if(substring(matchList[s, 3], 1, 3) == substring(origSpecies, 1, 3))
+            matchList[s, 4] = "Nomenclature change"
+          else
+            matchList[s, 4] = "Synonym"
+        }
 
-          #Order alphabetically the change column so that nomenclature comes first
-          matchList = matchList[order(matchList[, 4]), , drop = FALSE]
-          mismatches[i, 2:3] = c(paste(matchList[1, 2:3], collapse = " "), matchList[1, 4])
-          if(nrow(matchList) == 2)
-            mismatches[i, 4] = paste(matchList[2, 2:3], collapse = " ")
-          if(nrow(matchList) > 2)
-            mismatches[i, 4] = paste(matchList[2:nrow(matchList), 2:3], collapse = ", ")
+        #Order alphabetically the change column so that nomenclature comes first
+        matchList = matchList[order(matchList[, 4]), , drop = FALSE]
+        mismatches[i, 2:3] = c(paste(matchList[1, 2:3], collapse = " "), matchList[1, 4])
+        if(nrow(matchList) == 2)
+          mismatches[i, 4] = paste(matchList[2, 2:3], collapse = " ")
+        if(nrow(matchList) > 2)
+          mismatches[i, 4] = paste(matchList[2:nrow(matchList), 2:3], collapse = ", ")
       }
     }
 
@@ -340,9 +324,9 @@ checknames <- function(tax, full = FALSE, order = FALSE){
 #' @description Get species authority from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species authorities from the World Spider Catalogue (2025). Higher taxa will be converted to species names.
+#' @details This function will get species authorities from the World Spider Catalogue (2026). Higher taxa will be converted to species names.
 #' @return A data.frame with species and authority names.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' authors("Amphiledorus")
 #' authors(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -353,7 +337,7 @@ authors <- function(tax, order = FALSE){
   wsc()
   tax = getTax(tax)
 
-  filterTable = wscdata[wscdata$name %in% tax, , drop = FALSE]
+  filterTable = wscData[wscData$name %in% tax, , drop = FALSE]
   results = filterTable[ ,c(2,7)]
   colnames(results) = c("Species", "Authors")
   rownames(results) = NULL
@@ -371,9 +355,9 @@ authors <- function(tax, order = FALSE){
 #' @description Get species distribution from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa alphabetically or keep as in tax.
-#' @details This function will get species distributions from the World Spider Catalogue (2025).
+#' @details This function will get species distributions from the World Spider Catalogue (2026).
 #' @return A data.frame with species and distribution. Family and genera names will be converted to species.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' distribution("Nemesia")
 #' distribution(tax = c("Iberesia machadoi", "Amphiledorus ungoliantae"), order = TRUE)
@@ -384,7 +368,7 @@ distribution <- function(tax, order = FALSE){
   wsc()
   tax = getTax(tax)
 
-  results = wscdata[wscdata$name %in% tax, c(2, 11)]
+  results = wscData[wscData$name %in% tax, c(2, 11)]
   colnames(results) = c("Species", "Distribution")
   rownames(results) = NULL
   if(order)
@@ -395,9 +379,9 @@ distribution <- function(tax, order = FALSE){
 #' Get taxon countries from WSC.
 #' @description Get countries of taxa from the World Spider Catalogue textual descriptions.
 #' @param tax A taxon name or vector with taxa names.
-#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2026). These might be only approximations to country level and should be taken with caution.
 #' @return A vector with country ISO codes. Family and genera names will be converted to species.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' countries("Iberesia machadoi")
 #' countries(c("Iberesia machadoi", "Nemesia"))
@@ -406,12 +390,11 @@ distribution <- function(tax, order = FALSE){
 countries <- function(tax){
 
   wsc()
-  data(wscmap, package = "arakno", envir = environment())
   tax = getTax(tax)
 
   distribution = c()
   for(sp in tax){
-    spDist = wscdata[wscdata$name == sp, 11]
+    spDist = wscData[wscData$name == sp, 11]
     distribution = c(distribution, countrySplit(spDist))
   }
 
@@ -421,10 +404,10 @@ countries <- function(tax){
 
 #' Get country endemics from WSC.
 #' @description Get endemic species in any country or region from the World Spider Catalogue textual descriptions.
-#' @param country The ISO3 code (preferred to avoid ambiguity) or country/region name.
-#' @details Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
+#' @param country The ISO3 code (preferred to avoid ambiguity) or country/region name. Note that ISO3 codes will only identify countries while names will also identify many regions (e.g., islands of a larger country).
+#' @details Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2026). These might be only approximations to country level and should be taken with caution.
 #' @return A vector with species names.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' endemics("PRT")
 #' endemics("Madeira")
@@ -434,22 +417,25 @@ countries <- function(tax){
 endemics <- function(country){
 
   wsc()
-  wscdata = wscdata[wscdata$taxonStatus == "VALID",]
 
-  pb <- txtProgressBar(min = 0, max = nrow(wscdata), style = 3)
+  pb <- txtProgressBar(min = 0, max = nrow(wscData), style = 3)
   end = c()
+
+  #If ISO3 code used
   if(country %in% colnames(wscmap)){
-    for(i in 1:nrow(wscdata)){
-      ctr = iso(countrySplit(wscdata$distribution[i]))
-      if(length(ctr) == 1 && country == ctr[1])
-        end = c(end, wscdata$name[i])
+    for(i in 1:nrow(wscData)){
+      ctr = iso(countrySplit(wscData$distribution[i]))
+      if(length(ctr) == 1 && country == ctr)
+        end = c(end, wscData$name[i])
       setTxtProgressBar(pb, i)
     }
+
+  #if name used
   } else if(tolower(country) %in% wscmap$Region){
-    for(i in 1:nrow(wscdata)){
-      ctr = countrySplit(wscdata$distribution[i])
-      if(length(ctr) == 1 && tolower(country) == ctr[1])
-        end = c(end, wscdata$name[i])
+    for(i in 1:nrow(wscData)){
+      ctr = countrySplit(wscData$distribution[i])
+      if(length(ctr) == 1 && tolower(country) == ctr)
+        end = c(end, wscData$name[i])
       setTxtProgressBar(pb, i)
     }
   } else {
@@ -467,9 +453,9 @@ endemics <- function(country){
 #' @description Get species LSID from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species LSID from the World Spider Catalogue (2025). Family and genera names will be converted to species.
+#' @details This function will get species LSID from the World Spider Catalogue (2026). Family and genera names will be converted to species.
 #' @return A data.frame with species and LSID.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' lsid("Anapistula")
 #' lsid(tax = c("Iberesia machadoi", "Nemesia bacelarae", "Amphiledorus ungoliantae"), order = TRUE)
@@ -480,7 +466,7 @@ lsid <- function(tax, order = FALSE){
   wsc()
   tax = getTax(tax)
 
-  results = wscdata[wscdata$name %in% tax, 2:1]
+  results = wscData[wscData$name %in% tax, 2:1]
   colnames(results) = c("Species", "LSID")
   rownames(results) = NULL
   if(order)
@@ -492,9 +478,9 @@ lsid <- function(tax, order = FALSE){
 #' @description Get species within given families or genera from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param order Order species names alphabetically.
-#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2025).
+#' @details This function will get all species currently listed for given families or genera from the World Spider Catalogue (2026).
 #' @return A vector with species names.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' species("Amphiledorus")
 #' species(tax = c("Amphiledorus", "Nemesiidae"), order = TRUE)
@@ -503,11 +489,11 @@ lsid <- function(tax, order = FALSE){
 species <- function(tax, order = FALSE){
 
   wsc()
-  allPossible = unique(c(wscdata$family, wscdata$genus))
+  allPossible = unique(c(wscData$family, wscData$genus))
   if(any(!(tax %in% allPossible)))
     stop("The name(s) ", tax[!(tax %in% allPossible)], " were not found in WSC\n")
 
-  results = c(wscdata[wscdata$family %in% tax, 2], wscdata[wscdata$genus %in% tax, 2])
+  results = c(wscData[wscData$family %in% tax, 2], wscData[wscData$genus %in% tax, 2])
   results = unique(results)
   if(order)
     results = results[order(results)]
@@ -521,9 +507,9 @@ species <- function(tax, order = FALSE){
 #' @param aut add species authorities.
 #' @param id the lsid should be returned.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2025). Optionally, it will correct the species names (using function checknames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2026). Optionally, it will correct the species names (using function checkNames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 #' @return A data.frame with species and taxonomy.
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' taxonomy("Symphytognathidae", order = TRUE)
 #' taxonomy(c("Iberesia machadoi", "Nemesia bacelarae"), aut = TRUE, id = TRUE)
@@ -534,7 +520,7 @@ taxonomy <- function(tax, aut = FALSE, id = FALSE, order = FALSE){
   wsc()
   tax = getTax(tax)
 
-  results = wscdata[wscdata$name %in% tax, c(1,4,5,2)]
+  results = wscData[wscData$name %in% tax, c(1,4,5,2)]
   for(i in 1:nrow(results)){
     if(results$family[i] == "Liphistiidae")
       results$speciesId[i] = "Mesothelae"
@@ -563,32 +549,31 @@ taxonomy <- function(tax, aut = FALSE, id = FALSE, order = FALSE){
 #' Create phylogenetic tree.
 #' @description Create a phylogenetic tree based on the backbone from Macias-Hernandez et al. (2020) and the species taxonomical hierarchy.
 #' @param tax A taxon name or vector with taxa names. Should be in the general form "Family_sp" or "Genus speciesname", with family or genus name plus anything to uniquely identify the species separated by "_" or " ".
-#' @param update Whether to update the taxonomy of the backbone tree according to the WSC (2025).
+#' @param update Whether to update the taxonomy of the backbone tree according to the WSC (2026).
 #' @details Based on the backbone phylogeny of Macias-Hernandez et al. (2020). All species in tax present in the backbone are included in the output tree.
 #' If the species is not in the backbone, or if only family or genus are known, species are inserted at the level of the most recent common ancestor of confamiliar or congenerics respectively.
 #' If only one congeneric or confamiliar are in the backbone, the species is inserted at half the length of the corresponding edge.
 #' @return A phylo object with a phylogenetic tree for the community.
 #' @references Macías-Hernández et al. (2020). Building-up of a robust, densely sampled spider tree of life for assessing phylogenetic diversity at the community level. Diversity, 12: 288. https://doi.org/10.3390/d12080288
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' spp = c("Atypus affinis", "Tenuiphantes tenuis", "Zodarion sp1", "Araneus diadematus")
 #' spp = c(spp, "Zodarion sp2", "Atypus_nsp", "Nemesia ungoliant", "Linyphiidae sp1")
 #' spp = c(spp, "Zoropsis spinimana", "Pardosa sp1", "Pardosa acorensis", "Liphistius nsp")
-#' tree = buildtree(spp)
+#' tree = buildTree(spp)
 #' plot(tree)
 #' }
 #' @export
-buildtree <- function(tax, update = FALSE){
+buildTree <- function(tax, update = FALSE){
 
   #prepare data
   wsc()
-  data(globalTree, package = "arakno", envir = environment())
   tree = globalTree
   tax = sapply(tax, function(x) sub(" ", "_", x))
 
   #update tree nomenclature if needed
   if(update){
-    tips = checknames(sapply(tree$tip.label, function(x) sub("_", " ", x)), full = TRUE)
+    tips = checkNames(sapply(tree$tip.label, function(x) sub("_", " ", x)), full = TRUE)
     if(length(tips) > 1)
       tree$tip.label = sapply(tips[, 2], function(x) sub(" ", "_", x))
   }
@@ -633,12 +618,11 @@ buildtree <- function(tax, update = FALSE){
 traits <- function(tax, trait = NULL, sex = NULL, life = NULL, country = NULL, habitat = NULL, user = "", key = "", order = FALSE, verbose = TRUE){
 
   wsc()
-  wscdata = wscdata[wscdata$taxonStatus == "VALID", ]
 
   #in wst information can also be at family or genus level
   higher = c()
   for(t in tax){
-    if(t %in% wscdata$family || t %in% wscdata$genus)
+    if(t %in% wscData$family || t %in% wscData$genus)
       higher = c(higher, t)
   }
   tax = getTax(tax)
@@ -648,9 +632,9 @@ traits <- function(tax, trait = NULL, sex = NULL, life = NULL, country = NULL, h
   for(t in tax){
     if(verbose)
       message("Retrieving data for ", t, "\n")
-    if(t %in% wscdata$family) {            #if family
+    if(t %in% wscData$family) {            #if family
       newTraits = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/data/family/", t, "/genus/*/species/*/original-name/*/trait-category/*/trait/*/method/*/location/*/country/*/dataset/*/authors/*/reference/*/row-link/*?offset=0&limit=10000", sep = ""), authenticate(user, key, "basic"))
-    } else if(t %in% wscdata$genus) {           #if genus
+    } else if(t %in% wscData$genus) {           #if genus
       newTraits = httr::GET(paste("https://spidertraits.sci.muni.cz/backend/data/family/*/genus/", t, "/species/*/original-name/*/trait-category/*/trait/*/method/*/location/*/country/*/dataset/*/authors/*/reference/*/row-link/*?offset=0&limit=10000", sep = ""), authenticate(user, key, "basic"))
     } else {                                #if species
       t = sub(" ", "+", t)
@@ -712,7 +696,7 @@ records <- function(tax, order = FALSE, verbose = TRUE){
   for (sp in tax){
 
     #get GBIF data
-    gdata = occ_data(scientificName = sp)$data
+    gdata = rgbif::occ_search(scientificName = sp)$data
     if(length(gdata) > 1 && "decimalLongitude" %in% colnames(gdata)){
       gdoi = c()
       for(g in 1:nrow(gdata))
@@ -730,6 +714,9 @@ records <- function(tax, order = FALSE, verbose = TRUE){
       results = rbind(results, tdata)
     }
   }
+
+  if(is.null(results))
+    message("No data found in either GBIF or WST")
 
   #remove NA and duplicate values
   results = results[complete.cases(results), ]
@@ -751,10 +738,10 @@ records <- function(tax, order = FALSE, verbose = TRUE){
 #' @param zoom If records is TRUE, the map will be zoomed to the region with records.
 #' @param order Order taxa names alphabetically or keep as in tax.
 #' @param verbose Display information as data are retrieved.
-#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
+#' @details Countries based on the interpretation of the textual descriptions available at the World Spider Catalogue (2026). These might be only approximations to country level and should be taken with caution.
 #' @return A world map with countries and records highlighted.
 #' @references Pekar et al. (2021). The World Spider Trait database: a centralized global open repository for curated data on spider traits. Database, 2021: baab064. https://doi.org/10.1093/database/baab064
-#' @references World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
 #' map(c("Pardosa hyperborea"))
 #' map("Amphiledorus", zoom = TRUE, hires = TRUE)
@@ -764,7 +751,6 @@ records <- function(tax, order = FALSE, verbose = TRUE){
 map <- function(tax, countries = TRUE, records = TRUE, hires = FALSE, zoom = FALSE, order = FALSE, verbose = TRUE){
 
   wsc()
-  data(wscmap, package = "arakno", envir = environment())
 
   #preprocess data
   tax = getTax(tax)
@@ -798,12 +784,12 @@ map <- function(tax, countries = TRUE, records = TRUE, hires = FALSE, zoom = FAL
       mapCountryData(countryRegions, nameColumnToPlot = "exists", mapTitle = sp, catMethod = "categorical", addLegend = FALSE, colourPalette = "negpos8", oceanCol = "lightblue", missingCountryCol = "white")
     if(records)
       rec = records(sp, verbose = verbose)[2:3]
-    if(zoom && records) {
+    if(zoom && (records)) {
       xlim = c((min(rec[,1]) - 2), (max(rec[,1]) + 2))
       ylim = c((min(rec[,2]) - 2), (max(rec[,2]) + 2))
       mapCountryData(countryRegions, nameColumnToPlot = "exists", mapTitle = sp, catMethod = "categorical", addLegend = FALSE, colourPalette = "negpos8", oceanCol = "lightblue", missingCountryCol = "white", xlim = xlim, ylim = ylim)
     }
-    if(records)
+    if(!is.null(records))
       points(rec, pch = 21, col = "black", bg = "white")
   }
 }

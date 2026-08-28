@@ -7,7 +7,7 @@
 endemics(country)
 }
 \arguments{
-\item{country}{The ISO3 code (preferred to avoid ambiguity) or country/region name.}
+\item{country}{The ISO3 code (preferred to avoid ambiguity) or country/region name. Note that ISO3 codes will only identify countries while names will also identify many regions (e.g., islands of a larger country).}
 }
 \value{
 A vector with species names.
@@ -16,7 +16,7 @@ A vector with species names.
 Get endemic species in any country or region from the World Spider Catalogue textual descriptions.
 }
 \details{
-Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2025). These might be only approximations to country level and should be taken with caution.
+Species list based on the interpretation of the textual descriptions available at the World Spider Catalogue (2026). These might be only approximations to country level and should be taken with caution.
 }
 \examples{
 \dontrun{
@@ -26,5 +26,5 @@ endemics("Finland")
 }
 }
 \references{
-World Spider Catalog (2025). World Spider Catalog. Version 26. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 }
