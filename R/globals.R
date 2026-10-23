@@ -1,2 +1,2 @@
-utils::globalVariables(c("wscData", "wscmap", "globalTree"))
+utils::globalVariables(c("globalTree", "wscCont", "wscData", "wscMap"))
 

@@ -1,10 +1,10 @@
 #####arakno - ARAchnid KNowledge Online
-#####Version 1.3.3 (2026-08-26)
+#####Version 1.4.0 (2026-10-23)
 #####By Pedro Cardoso
 #####Maintainer: pmcardoso@ciencias.ulisboa.pt
 #####Reference: Cardoso, P. & Pekar, S. (2022) arakno - An R package for effective spider nomenclature, distribution and trait data retrieval from online resources. Journal of Arachnology, 50: 30-32. https://doi.org/10.1636/JoA-S-21-024
-#####Changed from v1.3.2:
-#####Corrected all functions relying on wsc and rgbif
+#####Changed from v1.3.3:
+#####Added function continents
 
 #####required packages
 library("ape")
@@ -61,8 +61,9 @@ firstUp <- function(x) {
 
 #identify if name is a family
 isFamily <- function(tax){
-  nTax = nchar(tax)
-  if(nTax > 4 & substr(tax, nTax-3, nTax) == "idae")
+  if(is.na(tax) || !is.character(tax) || nchar(tax) <= 4)
+    return(FALSE)
+  if(substr(tax, nchar(tax)-3, nchar(tax)) == "idae")
     return(TRUE)
   else
     return(FALSE)
@@ -74,11 +75,16 @@ addSpecies <- function(tree, tax){
   #prepare data
   tax = sub(" ", "_", tax)
   taxName = tax
-  tax = unlist(strsplit(tax, "_"))[1]
+  tax = sub("_.*", "", tax)
 
   #which tax and genera are on the tree?
-  taxTree = sapply(tree$tip.label,  function(x) unlist(strsplit(x, "_"))[1])
-  genTree = taxTree[sapply(unique(taxTree), function(x) !isFamily(x))]
+  tip_labels = tree$tip.label
+  taxTree = sub("_.*", "", tip_labels)
+  names(taxTree) = tip_labels
+  unique_tax = unique(taxTree)
+  valid_unique_tax = unique_tax[!is.na(unique_tax)]
+  is_fam = sapply(valid_unique_tax, isFamily)
+  genTree = taxTree[taxTree %in% valid_unique_tax[!is_fam]]
 
   #identify congenerics or confamiliar of tax in tree
   if(tax %in% genTree){   #use species from same genus in the tree if any
@@ -90,16 +96,26 @@ addSpecies <- function(tree, tax){
   }
 
   #add tax to tree
-  if(length(taxList) == 1){
-    #if taxList only has one species, the new taxon will be added at half the length
-    spNum = which(tree$tip.label == taxList)
-    edgeLength = tree$edge.length[which(tree$edge[, 2] == spNum)] / 2
-    tree = bind.tip(tree, taxName, edge.length = edgeLength, where = spNum, position = edgeLength)
-  } else {
-    #if taxList has multiple species identify most recent common ancestor to add tax
-    edgeNum = getMRCA(tree, taxList)
-    tree = bind.tip(tree, taxName, where = edgeNum)
-  }
+  tree = tryCatch({
+    if(length(taxList) == 0){
+      stop("Could not find family in tree")
+    } else if(length(taxList) == 1){
+      spNum = which(tree$tip.label == taxList)
+      if(length(spNum) == 0)
+        stop("Target tip not found in tree")
+      edgeLength = tree$edge.length[which(tree$edge[, 2] == spNum)] / 2
+      bind.tip(tree, taxName, edge.length = edgeLength, where = spNum, position = edgeLength)
+    } else {
+      edgeNum = getMRCA(tree, taxList)
+      if(is.null(edgeNum))
+        stop("Could not find MRCA for taxList")
+      bind.tip(tree, taxName, where = edgeNum)
+    }
+  }, error = function(e) {
+    # Safely log the failure and return the unchanged tree
+    message(paste("\nFailed to add species:", taxName, "| Reason:", e$message))
+    return(tree)
+  })
 
   #finalize
   tree <- multi2di(tree, random = TRUE) #resolve polytomies
@@ -117,7 +133,7 @@ countrySplit <- function(spDist){
 
 #function to convert distribution to ISO codes
 iso <- function(distribution){
-  distribution = wscmap[wscmap[,1] %in% distribution, -1]
+  distribution = wscMap[wscMap[,1] %in% distribution, -1]
   distribution = colSums(distribution)
   distribution = names(distribution[distribution > 0])
   distribution = distribution[order(distribution)]
@@ -402,6 +418,34 @@ countries <- function(tax){
   return(distribution)
 }
 
+#' Get taxon continents from WSC.
+#' @description Get continents of taxa from the World Spider Catalogue textual descriptions.
+#' @param tax A taxon name or vector with taxa names.
+#' @details Continents based on the interpretation of the textual descriptions available at the World Spider Catalogue (2026). These might be only approximations and should be taken with caution.
+#' @return A vector with continent names. Family and genera names will be converted to species.
+#' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
+#' @examples \dontrun{
+#' continents("Iberesia machadoi")
+#' continents(c("Iberesia machadoi", "Nemesia"))
+#' continents("Melopoeus lividus")
+#' }
+#' @export
+continents <- function(tax){
+
+  wsc()
+  tax = getTax(tax)
+
+  distribution = c()
+  for(sp in tax){
+    spDist = wscData[wscData$name == sp, 11]
+    distribution = c(distribution, countrySplit(spDist))
+  }
+  distribution = unique(distribution)
+  distribution = wscCont[which(wscCont$Region %in% distribution), -1]
+  distribution = colnames(distribution)[which(colSums(distribution) > 0)]
+  return(distribution)
+}
+
 #' Get country endemics from WSC.
 #' @description Get endemic species in any country or region from the World Spider Catalogue textual descriptions.
 #' @param country The ISO3 code (preferred to avoid ambiguity) or country/region name. Note that ISO3 codes will only identify countries while names will also identify many regions (e.g., islands of a larger country).
@@ -422,7 +466,7 @@ endemics <- function(country){
   end = c()
 
   #If ISO3 code used
-  if(country %in% colnames(wscmap)){
+  if(country %in% colnames(wscMap)){
     for(i in 1:nrow(wscData)){
       ctr = iso(countrySplit(wscData$distribution[i]))
       if(length(ctr) == 1 && country == ctr)
@@ -431,7 +475,7 @@ endemics <- function(country){
     }
 
   #if name used
-  } else if(tolower(country) %in% wscmap$Region){
+  } else if(tolower(country) %in% wscMap$Region){
     for(i in 1:nrow(wscData)){
       ctr = countrySplit(wscData$distribution[i])
       if(length(ctr) == 1 && tolower(country) == ctr)
@@ -502,12 +546,12 @@ species <- function(tax, order = FALSE){
 }
 
 #' Get taxonomy from species.
-#' @description Get species sub/infraorder, family and genus from the World Spider Catalogue.
+#' @description Get species suborder, family and genus from the World Spider Catalogue.
 #' @param tax A taxon name or vector with taxa names.
 #' @param aut add species authorities.
 #' @param id the lsid should be returned.
 #' @param order Order taxa names alphabetically or keep as in tax.
-#' @details This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2026). Optionally, it will correct the species names (using function checkNames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+#' @details This function will get species suborder, family and genus from the World Spider Catalogue (2026). Optionally, it will correct the species names (using function checkNames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 #' @return A data.frame with species and taxonomy.
 #' @references World Spider Catalog (2026). World Spider Catalog. Version 27. Natural History Museum Bern, online at http://wsc.nmbe.ch. doi: 10.24436/2.
 #' @examples \dontrun{
@@ -524,12 +568,22 @@ taxonomy <- function(tax, aut = FALSE, id = FALSE, order = FALSE){
   for(i in 1:nrow(results)){
     if(results$family[i] == "Liphistiidae")
       results$speciesId[i] = "Mesothelae"
-    else if (results$family[i] %in% c("Antrodiaetidae", "Atypidae", "Hexureliidae", "Mecicobothriidae", "Megahexuridae", "Actinopodidae", "Anamidae", "Atracidae", "Barychelidae", "Bemmeridae", "Ctenizidae", "Cyrtaucheniidae", "Dipluridae", "Entypesidae", "Euagridae", "Euctenizidae", "Halonoproctidae", "Hexathelidae", "Idiopidae", "Ischnothelidae", "Macrothelidae", "Microhexuridae", "Microstigmatidae", "Migidae", "Nemesiidae", "Paratropididae", "Porrhothelidae", "Pycnothelidae", "Stasimopidae", "Theraphosidae"))
+    else if (results$family[i] %in% c("Actinopodidae", "Anamidae", "Antrodiaetidae",
+                                      "Atracidae", "Atypidae", "Barychelidae",
+                                      "Bemmeridae", "Ctenizidae", "Cyrtaucheniidae",
+                                      "Dipluridae", "Entypesidae", "Euagridae",
+                                      "Euctenizidae", "Halonoproctidae", "Hexathelidae",
+                                      "Hexureliidae", "Idiopidae", "Ischnotelidae",
+                                      "Macrothelidae", "Mecicobothriidae", "Megahexuridae",
+                                      "Melloinidae", "Microhexuridae", "Microstigmatidae",
+                                      "Migidae", "Nemesiidae", "Paratropididae",
+                                      "Porrhothelidae", "Pycnothelidae", "Rhyditicolidae",
+                                      "Stasimopidae", "Theraphosidae"))
       results$speciesId[i] = "Mygalomorphae"
     else
       results$speciesId[i] = "Araneomorphae"
   }
-  colnames(results)[1:4] = c("Sub/Infraorder", "Family", "Genus", "Species")
+  colnames(results)[1:4] = c("Suborder", "Family", "Genus", "Species")
   rownames(results) = NULL
 
   if(order)
@@ -583,10 +637,11 @@ buildTree <- function(tax, update = FALSE){
     if(!(tax[i] %in% tree$tip.label)){  #if tax is not represented in tree, add it
       tree = addSpecies(tree, tax[i])
       names(tree$tip.label) = tree$tip.label
-      writeLines(paste("Added", tax[i], "to tree\n"))
+      cat(paste("\rAdded species", i, "of", length(tax), "to tree:", tax[i], "                                     "))
     }
   }
 
+  tax = tax[tax %in% tree$tip.label]
   tree = keep.tip(tree, tax)  #leave only taxa of interest
   return(tree)
 }
@@ -805,13 +860,25 @@ map <- function(tax, countries = TRUE, records = TRUE, hires = FALSE, zoom = FAL
 #' @format A phylo object with 132 families and 800+ genera, 1400+ species.
 NULL
 
-#' Matrix matching WSC and ISO3 country codes.
+#' Matrix matching WSC and continents.
 #'
-#' A dataset that links species distribution descriptions with the map using the ISO3 code
+#' A dataset that links species distribution descriptions with continents.
 #'
 #' @docType data
 #' @keywords datasets
-#' @name wscmap
-#' @usage data(wscmap)
+#' @name wscCont
+#' @usage data(wscCont)
+#' @format A matrix with regions and corresponding continents.
+NULL
+
+#' Matrix matching WSC and ISO3 country codes.
+#'
+#' A dataset that links species distribution descriptions with the map using the ISO3 code.
+#'
+#' @docType data
+#' @keywords datasets
+#' @name wscMap
+#' @usage data(wscMap)
 #' @format A matrix with regions and corresponding ISO3 codes.
 NULL
+

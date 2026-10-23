@@ -19,10 +19,10 @@ taxonomy(tax, aut = FALSE, id = FALSE, order = FALSE)
 A data.frame with species and taxonomy.
 }
 \description{
-Get species sub/infraorder, family and genus from the World Spider Catalogue.
+Get species suborder, family and genus from the World Spider Catalogue.
 }
 \details{
-This function will get species sub/infraorder, family and genus from the World Spider Catalogue (2026). Optionally, it will correct the species names (using function checkNames) and provide the lsid and authors from the WSC (using functions lsid and authors).
+This function will get species suborder, family and genus from the World Spider Catalogue (2026). Optionally, it will correct the species names (using function checkNames) and provide the lsid and authors from the WSC (using functions lsid and authors).
 }
 \examples{
 \dontrun{

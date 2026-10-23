@@ -3,6 +3,7 @@
 export(authors)
 export(buildTree)
 export(checkNames)
+export(continents)
 export(countries)
 export(distribution)
 export(endemics)
